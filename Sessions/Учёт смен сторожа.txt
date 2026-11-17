@@ -1,0 +1,1333 @@
+User: «Напиши простой консольный скрипт на Python 3 для учёта смен сторожа. Скрипт должен спрашивать: дату, время начала, время конца, что произошло (текст). Всё это сохранять в файл shift_log.csv (если файла нет — создать с заголовками). Не использовать внешние библиотеки, только стандартные (csv, datetime). Код должен быть понятным для новичка, с комментариями на русском.»
+
+DeepSeek: ```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Простой скрипт учёта смен сторожа.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Заголовки столбцов в CSV
+HEADERS = ["Дата", "Начало", "Конец", "Длительность (ч)", "Событие"]
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Если конец меньше начала — считаем, что смена перешла через полночь.
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+    if end < start:
+        # смена через полночь: добавляем сутки
+        end = end.replace(day=end.day)  # не нужно, но для наглядности
+        delta = (datetime.strptime("23:59", fmt) - start) + (end - datetime.strptime("00:00", fmt))
+        # проще: прибавить 24 часа
+        delta = (end - start).total_seconds() / 3600 + 24
+    else:
+        delta = (end - start).total_seconds() / 3600
+    return round(delta, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт смен сторожа ===")
+    ensure_file_exists()
+
+    date_str = ask_date()
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+
+    record = [date_str, start_str, end_str, hours, event]
+    append_record(record)
+
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Что делает скрипт
+
+1. **Проверяет файл** `shift_log.csv`. Если его нет — создаёт с заголовками: `Дата;Начало;Конец;Длительность (ч);Событие`.
+2. **Спрашивает дату** в формате `ДД.ММ.ГГГГ` (с проверкой корректности).
+3. **Спрашивает время начала и конца** в формате `ЧЧ:ММ`.
+4. **Считает длительность** в часах. Если смена переходит через полночь (например, `22:00` → `06:00`), скрипт это учитывает.
+5. **Спрашивает текст события** (не пустой).
+6. **Дописывает строку** в CSV и выводит итог на экран.
+
+### Особенности
+
+- Разделитель `;` — чтобы Excel в русской локали открывал файл без «танцев с бубном».
+- `newline=""` при открытии — обязательное требование модуля `csv`, иначе появятся пустые строки.
+- Кодировка `utf-8` — корректно сохраняет кириллицу.
+- Все проверки — в циклах `while True`, чтобы новичок не «вылетал» из скрипта из-за опечатки.
+
+### Пример работы
+
+```
+=== Учёт смен сторожа ===
+Создан новый файл журнала: shift_log.csv
+Дата смены (ДД.ММ.ГГГГ): 05.11.2026
+Время начала (ЧЧ:ММ): 20:00
+Время конца (ЧЧ:ММ): 08:00
+Что произошло (текст): Обход территории, всё спокойно
+
+Запись сохранена:
+  Дата:         2026-11-05
+  Начало:       20:00
+  Конец:        08:00
+  Длительность: 12.0 ч
+  Событие:      Обход территории, всё спокойно
+```
+
+User: «Обнови мой скрипт учёта смен сторожа. Нужно внести два изменения:
+
+    Смены суточные. Скрипт должен считать разницу между временем конца и начала с учётом перехода через полночь (например, с 08:00 до 08:00 следующего дня = 24 часа).
+
+    Добавь учёт посещений спецслужб. После вопроса о событии, скрипт должен спрашивать по очереди: "Прибытие Ветврача (ЧЧ:ММ или Enter, если не было):", "Убытие Ветврача (ЧЧ:ММ или Enter):", затем то же самое для Молокоцеха, Бухгалтерии и Электрика. Если пользователь нажимает Enter, скрипт пропускает этого специалиста.
+    Все эти данные (время прибытия и убытия для каждого) нужно сохранять в CSV-файл новыми столбцами. Сохрани комментарии на русском для новичка. Вот мой текущий код: [#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Простой скрипт учёта смен сторожа.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Заголовки столбцов в CSV
+HEADERS = ["Дата", "Начало", "Конец", "Длительность (ч)", "Событие"]
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Если конец меньше начала — считаем, что смена перешла через полночь.
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+    if end < start:
+        # смена через полночь: добавляем сутки
+        end = end.replace(day=end.day)  # не нужно, но для наглядности
+        delta = (datetime.strptime("23:59", fmt) - start) + (end - datetime.strptime("00:00", fmt))
+        # проще: прибавить 24 часа
+        delta = (end - start).total_seconds() / 3600 + 24
+    else:
+        delta = (end - start).total_seconds() / 3600
+    return round(delta, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт смен сторожа ===")
+    ensure_file_exists()
+
+    date_str = ask_date()
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+
+    record = [date_str, start_str, end_str, hours, event]
+    append_record(record)
+
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()
+]»
+
+DeepSeek: ```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Скрипт учёта суточных смен сторожа с учётом посещений спецслужб.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Список спецслужб, посещения которых фиксируем.
+# Для каждой будет два столбца: "Прибытие <имя>" и "Убытие <имя>".
+SERVICES = ["Ветврач", "Молокоцех", "Бухгалтерия", "Электрик"]
+
+# Заголовки столбцов в CSV.
+# Сначала общие поля смены, потом для каждой службы — прибытие и убытие.
+HEADERS = ["Дата", "Начало", "Конец", "Длительность (ч)", "Событие"]
+for name in SERVICES:
+    HEADERS.append(f"Прибытие {name}")
+    HEADERS.append(f"Убытие {name}")
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def ask_optional_time(label):
+    """
+    Спрашивает время в формате ЧЧ:ММ.
+    Пустой ввод (Enter) означает «не было» — возвращаем пустую строку.
+    Используется для прибытия/убытия спецслужб.
+    """
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ или Enter, если не было): ").strip()
+        if raw == "":
+            return ""  # пользователь пропустил — значит, не приезжал
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30 (или Enter)")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Смены суточные, поэтому если конец <= начала — считаем,
+    что смена перешла через полночь, и прибавляем 24 часа.
+    Пример: 08:00 -> 08:00 = 24 часа (следующий день).
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+
+    # Разница в часах
+    diff = (end - start).total_seconds() / 3600
+
+    # Если разница <= 0 — значит, конец наступил на следующий день
+    if diff <= 0:
+        diff += 24
+
+    return round(diff, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def ask_services():
+    """
+    По очереди спрашивает время прибытия и убытия для каждой спецслужбы.
+    Возвращает список значений в порядке, соответствующем SERVICES:
+    [приб1, уб1, приб2, уб2, ...].
+    Если специалист не приезжал (пользователь нажал Enter на прибытии),
+    то и убытие не спрашиваем — сразу пишем пустые значения.
+    """
+    values = []
+    for name in SERVICES:
+        arrival = ask_optional_time(f"Прибытие {name}")
+        if arrival == "":
+            # Специалист не приезжал — убытие тоже пустое, не спрашиваем
+            departure = ""
+            print(f"  — {name}: не было")
+        else:
+            departure = ask_optional_time(f"Убытие {name}")
+        values.append(arrival)
+        values.append(departure)
+    return values
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт суточных смен сторожа ===")
+    ensure_file_exists()
+
+    date_str = ask_date()
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+    service_values = ask_services()
+
+    # Собираем полную строку: общие поля + данные по службам
+    record = [date_str, start_str, end_str, hours, event] + service_values
+    append_record(record)
+
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    for i, name in enumerate(SERVICES):
+        arrival = service_values[i * 2]
+        departure = service_values[i * 2 + 1]
+        if arrival == "" and departure == "":
+            print(f"  {name}: не было")
+        else:
+            print(f"  {name}: прибытие {arrival or '—'}, убытие {departure or '—'}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Что изменилось
+
+**1. Расчёт длительности для суточных смен.**
+Функция `calc_hours` теперь использует условие `diff <= 0` → прибавить 24 часа. Это значит:
+- `08:00 → 08:00` = **24.0 ч** (следующий день);
+- `20:00 → 06:00` = **10.0 ч**;
+- `08:00 → 20:00` = **12.0 ч**.
+
+Знак `<=` (а не `<`) — потому что суточная смена «в то же время» это ровно 24 часа, а не 0.
+
+**2. Учёт спецслужб.**
+- Список `SERVICES` вынесен в начало — легко добавить/убрать специалиста одной строкой.
+- Заголовки CSV формируются автоматически: для каждой службы два столбца — `Прибытие <имя>` и `Убытие <имя>`.
+- Новая функция `ask_optional_time` принимает Enter как «не было».
+- Функция `ask_services` опрашивает всех по очереди. Если на прибытии нажат Enter — убытие не спрашиваем (специалист не приезжал).
+
+**3. Совместимость со старым файлом.**
+⚠️ **Важно:** если у вас уже есть `shift_log.csv` со старой шапкой (без столбцов служб), новый скрипт допишет строки с другими столбцами — получится «каша». Варианты:
+- удалить/переименовать старый файл (скрипт создаст новый с правильными заголовками);
+- вручную дописать в первую строку старого файла недостающие заголовки: `Прибытие Ветврач;Убытие Ветврач;...` — но старые строки останутся короче, что не критично для чтения.
+
+### Пример работы
+
+```
+=== Учёт суточных смен сторожа ===
+Дата смены (ДД.ММ.ГГГГ): 05.11.2026
+Время начала (ЧЧ:ММ): 08:00
+Время конца (ЧЧ:ММ): 08:00
+Что произошло (текст): Обход, всё спокойно
+Прибытие Ветврач (ЧЧ:ММ или Enter, если не было): 10:30
+Убытие Ветврач (ЧЧ:ММ или Enter, если не было): 11:15
+Прибытие Молокоцех (ЧЧ:ММ или Enter, если не было): 
+  — Молокоцех: не было
+Прибытие Бухгалтерия (ЧЧ:ММ или Enter, если не было): 14:00
+Убытие Бухгалтерия (ЧЧ:ММ или Enter, если не было): 14:40
+Прибытие Электрик (ЧЧ:ММ или Enter, если не было): 
+  — Электрик: не было
+
+Запись сохранена:
+  Дата:         2026-11-05
+  Начало:       08:00
+  Конец:        08:00
+  Длительность: 24.0 ч
+  Событие:      Обход, всё спокойно
+  Ветврач: прибытие 10:30, убытие 11:15
+  Молокоцех: не было
+  Бухгалтерия: прибытие 14:00, убытие 14:40
+  Электрик: не было
+```
+
+User: Вот что получилось: - 
+iks@Legend:~/Projects/GuardLog$ python3 log.py
+=== Учёт суточных смен сторожа ===
+Дата смены (ДД.ММ.ГГГГ): 15.11.2026
+Время начала (ЧЧ:ММ): 
+  ! Неверный формат времени. Пример: 08:30
+Время начала (ЧЧ:ММ): 08:00
+Время конца (ЧЧ:ММ): 08:00
+Что произошло (текст): Ветврач
+Прибытие Ветврач (ЧЧ:ММ или Enter, если не было): 06:25
+Убытие Ветврач (ЧЧ:ММ или Enter, если не было): 
+
+В моём скрипте log.py есть ошибка. Функция ask_optional_time не принимает пустой ввод (Enter). При нажатии Enter она выдаёт "Неверный формат времени" вместо того, чтобы пропустить вопрос и вернуть пустую строку.
+Пожалуйста, исправь функцию ask_optional_time так, чтобы она проверяла: если пользователь ничего не ввёл (пустая строка после .strip()), то сразу возвращать "" (пустую строку) без попытки распарсить время.
+Вот код функции: [вставь сюда кусок кода функции ask_optional_time из своего файла, начиная с def ask_optional_time и до следующей def]
+
+DeepSeek: Странно — в коде, который я прислал, эта проверка уже есть. Скорее всего, в вашем файле `log.py` случайно потерялась строка `if raw == "":` (или в файле осталась старая версия функции). Вот исправленная функция целиком — просто замените ею текущую `ask_optional_time` в `log.py`:
+
+```python
+def ask_optional_time(label):
+    """
+    Спрашивает время в формате ЧЧ:ММ.
+    Пустой ввод (Enter) означает «не было» — возвращаем пустую строку.
+    Используется для прибытия/убытия спецслужб.
+    """
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ или Enter, если не было): ").strip()
+
+        # ПЕРВЫМ ДЕЛОМ проверяем пустой ввод — это и есть «не было»
+        if raw == "":
+            return ""
+
+        # Только теперь пытаемся распарсить время
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30 (или Enter)")
+```
+
+### Почему падало у вас
+
+В вашем прогоне видно: на «Убытие Ветврач» вы нажали Enter — и вместо возврата `""` функция ушла в `try` и выдала ошибку. Значит, в вашем файле проверка `if raw == "":` либо отсутствует, либо стоит **после** `try/except`. Порядок критичен: проверка пустой строки должна идти **до** `strptime`, иначе `strptime("", "%H:%M")` кинет `ValueError`.
+
+### На что ещё обратить внимание в вашем прогоне
+
+Вы ввели:
+
+```
+Что произошло (текст): Ветврач
+Прибытие Ветврач ...: 06:25
+Убытие Ветврач ...: <Enter>
+```
+
+Всё корректно с точки зрения скрипта, но обратите внимание: в поле «Что произошло» вы, похоже, хотели написать не «Ветврач», а что-то другое (это же текст события смены, а не имя специалиста). Скрипт это не проверяет — это просто свободный текст. Если хотите, могу добавить подсказку в приглашении, например:
+
+```python
+text = input("Что произошло за смену (кратко, текст): ").strip()
+```
+
+После замены функции перезапустите `python3 log.py` — Enter на прибытии/убытии теперь будет молча пропускать специалиста.
+
+User: Друг, я слегка запутался, будь добр, выдай пожалуйста мне исправленный код целиком.
+
+DeepSeek: Держи полный исправленный код `log.py` целиком:
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Скрипт учёта суточных смен сторожа с учётом посещений спецслужб.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Список спецслужб, посещения которых фиксируем.
+# Для каждой будет два столбца: "Прибытие <имя>" и "Убытие <имя>".
+SERVICES = ["Ветврач", "Молокоцех", "Бухгалтерия", "Электрик"]
+
+# Заголовки столбцов в CSV.
+# Сначала общие поля смены, потом для каждой службы — прибытие и убытие.
+HEADERS = ["Дата", "Начало", "Конец", "Длительность (ч)", "Событие"]
+for name in SERVICES:
+    HEADERS.append(f"Прибытие {name}")
+    HEADERS.append(f"Убытие {name}")
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def ask_optional_time(label):
+    """
+    Спрашивает время в формате ЧЧ:ММ.
+    Пустой ввод (Enter) означает «не было» — возвращаем пустую строку.
+    Используется для прибытия/убытия спецслужб.
+    """
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ или Enter, если не было): ").strip()
+
+        # ПЕРВЫМ ДЕЛОМ проверяем пустой ввод — это и есть «не было»
+        if raw == "":
+            return ""
+
+        # Только теперь пытаемся распарсить время
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30 (или Enter)")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Смены суточные, поэтому если конец <= начала — считаем,
+    что смена перешла через полночь, и прибавляем 24 часа.
+    Пример: 08:00 -> 08:00 = 24 часа (следующий день).
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+
+    # Разница в часах
+    diff = (end - start).total_seconds() / 3600
+
+    # Если разница <= 0 — значит, конец наступил на следующий день
+    if diff <= 0:
+        diff += 24
+
+    return round(diff, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def ask_services():
+    """
+    По очереди спрашивает время прибытия и убытия для каждой спецслужбы.
+    Возвращает список значений в порядке, соответствующем SERVICES:
+    [приб1, уб1, приб2, уб2, ...].
+    Если специалист не приезжал (пользователь нажал Enter на прибытии),
+    то и убытие не спрашиваем — сразу пишем пустые значения.
+    """
+    values = []
+    for name in SERVICES:
+        arrival = ask_optional_time(f"Прибытие {name}")
+        if arrival == "":
+            # Специалист не приезжал — убытие тоже пустое, не спрашиваем
+            departure = ""
+            print(f"  — {name}: не было")
+        else:
+            departure = ask_optional_time(f"Убытие {name}")
+        values.append(arrival)
+        values.append(departure)
+    return values
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт суточных смен сторожа ===")
+    ensure_file_exists()
+
+    date_str = ask_date()
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+    service_values = ask_services()
+
+    # Собираем полную строку: общие поля + данные по службам
+    record = [date_str, start_str, end_str, hours, event] + service_values
+    append_record(record)
+
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    for i, name in enumerate(SERVICES):
+        arrival = service_values[i * 2]
+        departure = service_values[i * 2 + 1]
+        if arrival == "" and departure == "":
+            print(f"  {name}: не было")
+        else:
+            print(f"  {name}: прибытие {arrival or '—'}, убытие {departure or '—'}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Что было не так и что исправлено
+
+В функции `ask_optional_time` проверка `if raw == "":` теперь стоит **до** блока `try/except`. Именно поэтому Enter теперь корректно возвращает пустую строку и специалист пропускается.
+
+### Проверка
+
+Запустите `python3 log.py`. На вопрос «Убытие Ветврач» нажмите просто Enter — скрипт должен вывести `— Ветврач: не было` (если Enter был и на прибытии) или записать пустое убытие без ошибки.
+
+Если снова увидите «Неверный формат времени» на пустом вводе — значит, запускается не тот файл (проверьте `pwd` и `ls -l log.py`, а также что нет второго `log.py` где-то в `PYTHONPATH`).
+
+User: «Обнови мой скрипт учёта смен. Внеси следующие изменения:
+
+    ФИО дежурного. В самом начале скрипт должен спрашивать: "ФИО дежурного сторожа:". Это поле обязательно для заполнения (не пустое).
+
+    Хронология событий (Ветврач, Молокоцех, Бухгалтерия, Электрик). Сейчас скрипт спрашивает "Прибытие" и сразу "Убытие". Измени логику:
+
+        Сначала скрипт спрашивает "Прибытие (ЧЧ:ММ или Enter, если не было)".
+
+        Если время прибытия введено, скрипт запоминает это и переходит к следующему сотруднику (Молокоцех и т.д.).
+
+        После опроса ВСЕХ прибытий, скрипт должен перейти к опросу УБЫТИЙ для тех, кто прибыл. Например: "Ветврач прибыл в 06:35. Время убытия Ветврача (ЧЧ:ММ):". Если сотрудник не приезжал (прибытие пустое), скрипт не спрашивает его убытие.
+
+    Заметки и поручения. Добавь вопрос: "Поручения/заметки на смену (текст, можно оставить пустым):". Если текст есть — сохранить в CSV. Если пусто — сохранить прочерк "-".
+
+    Зарплата. Добавь вопрос: "Ставка за смену (руб., можно оставить пустым):". Если введено число, скрипт считает зарплату (1 смена = ставка). Если пусто — писать 0.
+
+    CSV. В CSV-файле теперь должны быть столбцы: Дата, ФИО, Время начала, Время конца, Длительность (ч), Событие, Ставка (руб.), Поручения, Ветврач (Приб/Уб), Молокоцех (Приб/Уб), Бухгалтерия (Приб/Уб), Электрик (Приб/Уб). Для прибывших/убывших пиши 06:35/09:00, если не был — -.
+
+Выдай полный обновлённый код с комментариями на русском. Вот мой текущий код: [#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Скрипт учёта суточных смен сторожа с учётом посещений спецслужб.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Список спецслужб, посещения которых фиксируем.
+# Для каждой будет два столбца: "Прибытие <имя>" и "Убытие <имя>".
+SERVICES = ["Ветврач", "Молокоцех", "Бухгалтерия", "Электрик"]
+
+# Заголовки столбцов в CSV.
+# Сначала общие поля смены, потом для каждой службы — прибытие и убытие.
+HEADERS = ["Дата", "Начало", "Конец", "Длительность (ч)", "Событие"]
+for name in SERVICES:
+    HEADERS.append(f"Прибытие {name}")
+    HEADERS.append(f"Убытие {name}")
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def ask_optional_time(label):
+    """
+    Спрашивает время в формате ЧЧ:ММ.
+    Пустой ввод (Enter) означает «не было» — возвращаем пустую строку.
+    Используется для прибытия/убытия спецслужб.
+    """
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ или Enter, если не было): ").strip()
+
+        # ПЕРВЫМ ДЕЛОМ проверяем пустой ввод — это и есть «не было»
+        if raw == "":
+            return ""
+
+        # Только теперь пытаемся распарсить время
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30 (или Enter)")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Смены суточные, поэтому если конец <= начала — считаем,
+    что смена перешла через полночь, и прибавляем 24 часа.
+    Пример: 08:00 -> 08:00 = 24 часа (следующий день).
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+
+    # Разница в часах
+    diff = (end - start).total_seconds() / 3600
+
+    # Если разница <= 0 — значит, конец наступил на следующий день
+    if diff <= 0:
+        diff += 24
+
+    return round(diff, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def ask_services():
+    """
+    По очереди спрашивает время прибытия и убытия для каждой спецслужбы.
+    Возвращает список значений в порядке, соответствующем SERVICES:
+    [приб1, уб1, приб2, уб2, ...].
+    Если специалист не приезжал (пользователь нажал Enter на прибытии),
+    то и убытие не спрашиваем — сразу пишем пустые значения.
+    """
+    values = []
+    for name in SERVICES:
+        arrival = ask_optional_time(f"Прибытие {name}")
+        if arrival == "":
+            # Специалист не приезжал — убытие тоже пустое, не спрашиваем
+            departure = ""
+            print(f"  — {name}: не было")
+        else:
+            departure = ask_optional_time(f"Убытие {name}")
+        values.append(arrival)
+        values.append(departure)
+    return values
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт суточных смен сторожа ===")
+    ensure_file_exists()
+
+    date_str = ask_date()
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+    service_values = ask_services()
+
+    # Собираем полную строку: общие поля + данные по службам
+    record = [date_str, start_str, end_str, hours, event] + service_values
+    append_record(record)
+
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    for i, name in enumerate(SERVICES):
+        arrival = service_values[i * 2]
+        departure = service_values[i * 2 + 1]
+        if arrival == "" and departure == "":
+            print(f"  {name}: не было")
+        else:
+            print(f"  {name}: прибытие {arrival or '—'}, убытие {departure or '—'}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()]»
+
+DeepSeek: ```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Скрипт учёта суточных смен сторожа с учётом посещений спецслужб.
+Данные сохраняются в файл shift_log.csv (разделитель — точка с запятой,
+чтобы Excel корректно открывал русский текст).
+
+Используются только стандартные библиотеки: csv, datetime, os.
+"""
+
+import csv
+import os
+from datetime import datetime
+
+# Имя файла с журналом смен
+LOG_FILE = "shift_log.csv"
+
+# Список спецслужб, посещения которых фиксируем.
+# Для каждой в CSV будет один столбец вида "Ветврач (Приб/Уб)".
+SERVICES = ["Ветврач", "Молокоцех", "Бухгалтерия", "Электрик"]
+
+# Заголовки столбцов в CSV.
+# Порядок важен: он совпадает с порядком значений в record.
+HEADERS = [
+    "Дата",
+    "ФИО",
+    "Время начала",
+    "Время конца",
+    "Длительность (ч)",
+    "Событие",
+    "Ставка (руб.)",
+    "Поручения",
+]
+# Для каждой службы — один столбец "Имя (Приб/Уб)"
+for name in SERVICES:
+    HEADERS.append(f"{name} (Приб/Уб)")
+
+
+def ensure_file_exists():
+    """Создаёт CSV-файл с заголовками, если его ещё нет."""
+    if not os.path.exists(LOG_FILE):
+        # newline="" — обязательное условие для модуля csv,
+        # иначе на Windows будут появляться пустые строки
+        with open(LOG_FILE, mode="w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(HEADERS)
+        print(f"Создан новый файл журнала: {LOG_FILE}")
+
+
+def ask_date():
+    """Спрашивает дату в формате ДД.ММ.ГГГГ и возвращает строку ISO (ГГГГ-ММ-ДД)."""
+    while True:
+        raw = input("Дата смены (ДД.ММ.ГГГГ): ").strip()
+        try:
+            # Проверяем, что дата корректная
+            dt = datetime.strptime(raw, "%d.%m.%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            print("  ! Неверный формат даты. Пример: 05.11.2026")
+
+
+def ask_required_text(label):
+    """Спрашивает непустой текст (обязательное поле)."""
+    while True:
+        text = input(f"{label}: ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def ask_optional_text(label):
+    """
+    Спрашивает текст, который можно оставить пустым.
+    Возвращает введённую строку или "-", если пользователь нажал Enter.
+    """
+    text = input(f"{label}: ").strip()
+    return text if text else "-"
+
+
+def ask_time(label):
+    """Спрашивает время в формате ЧЧ:ММ и возвращает строку в том же формате."""
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ): ").strip()
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30")
+
+
+def ask_optional_time(label):
+    """
+    Спрашивает время в формате ЧЧ:ММ.
+    Пустой ввод (Enter) означает «не было» — возвращаем пустую строку.
+    Используется для прибытия спецслужб.
+    """
+    while True:
+        raw = input(f"{label} (ЧЧ:ММ или Enter, если не было): ").strip()
+
+        # ПЕРВЫМ ДЕЛОМ проверяем пустой ввод — это и есть «не было»
+        if raw == "":
+            return ""
+
+        # Только теперь пытаемся распарсить время
+        try:
+            dt = datetime.strptime(raw, "%H:%M")
+            return dt.strftime("%H:%M")
+        except ValueError:
+            print("  ! Неверный формат времени. Пример: 08:30 (или Enter)")
+
+
+def ask_rate():
+    """
+    Спрашивает ставку за смену в рублях.
+    Пустой ввод — ставка 0.
+    Возвращает число (int или float).
+    """
+    while True:
+        raw = input("Ставка за смену (руб., можно оставить пустым): ").strip()
+        if raw == "":
+            return 0
+        # Разрешаем и точку, и запятую как десятичный разделитель
+        raw = raw.replace(",", ".")
+        try:
+            value = float(raw)
+            if value < 0:
+                print("  ! Ставка не может быть отрицательной.")
+                continue
+            # Если число целое — вернём int, чтобы в CSV было красивее
+            return int(value) if value.is_integer() else round(value, 2)
+        except ValueError:
+            print("  ! Введите число, например: 2500 (или Enter)")
+
+
+def calc_hours(start_str, end_str):
+    """
+    Считает длительность смены в часах.
+    Смены суточные, поэтому если конец <= начала — считаем,
+    что смена перешла через полночь, и прибавляем 24 часа.
+    Пример: 08:00 -> 08:00 = 24 часа (следующий день).
+    """
+    fmt = "%H:%M"
+    start = datetime.strptime(start_str, fmt)
+    end = datetime.strptime(end_str, fmt)
+
+    # Разница в часах
+    diff = (end - start).total_seconds() / 3600
+
+    # Если разница <= 0 — значит, конец наступил на следующий день
+    if diff <= 0:
+        diff += 24
+
+    return round(diff, 2)
+
+
+def ask_event():
+    """Спрашивает текст о том, что произошло на смене."""
+    while True:
+        text = input("Что произошло (текст): ").strip()
+        if text:
+            return text
+        print("  ! Поле не должно быть пустым.")
+
+
+def ask_services():
+    """
+    Двухэтапный опрос спецслужб:
+
+    Этап 1. По очереди спрашиваем прибытие для каждой службы.
+            Пустой ввод = не приезжал.
+    Этап 2. Для тех, кто прибыл, спрашиваем убытие.
+
+    Возвращает словарь: {имя: (прибытие, убытие)}.
+    Пустые значения означают «не было».
+    """
+    arrivals = {}
+
+    # ЭТАП 1: только прибытия
+    print("\n--- Прибытия ---")
+    for name in SERVICES:
+        arrival = ask_optional_time(f"Прибытие {name}")
+        arrivals[name] = arrival
+        if arrival == "":
+            print(f"  — {name}: не было")
+
+    # ЭТАП 2: убытия только для тех, кто прибыл
+    departures = {}
+    print("\n--- Убытия ---")
+    any_arrivals = False
+    for name in SERVICES:
+        arrival = arrivals[name]
+        if arrival == "":
+            # Не приезжал — убытие не спрашиваем
+            departures[name] = ""
+            continue
+        any_arrivals = True
+        # Спрашиваем убытие (тут уже не разрешаем пустой ввод — надо время)
+        while True:
+            raw = input(
+                f"{name} прибыл в {arrival}. Время убытия {name} (ЧЧ:ММ): "
+            ).strip()
+            try:
+                dt = datetime.strptime(raw, "%H:%M")
+                departures[name] = dt.strftime("%H:%M")
+                break
+            except ValueError:
+                print("  ! Неверный формат времени. Пример: 09:00")
+
+    if not any_arrivals:
+        print("  — никто не приезжал")
+
+    return {name: (arrivals[name], departures[name]) for name in SERVICES}
+
+
+def build_service_cell(arrival, departure):
+    """
+    Формирует значение для CSV-столбца службы.
+    - Если не был: "-"
+    - Если прибыл и убыл: "06:35/09:00"
+    - Если прибыл, но убытие почему-то пустое: "06:35/-"
+    """
+    if arrival == "" and departure == "":
+        return "-"
+    return f"{arrival or '-'}/{departure or '-'}"
+
+
+def append_record(record):
+    """Дописывает одну строку в CSV-файл."""
+    with open(LOG_FILE, mode="a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(record)
+
+
+def main():
+    print("=== Учёт суточных смен сторожа ===")
+    ensure_file_exists()
+
+    # Общие поля смены
+    date_str = ask_date()
+    fio = ask_required_text("ФИО дежурного сторожа")
+    start_str = ask_time("Время начала")
+    end_str = ask_time("Время конца")
+    hours = calc_hours(start_str, end_str)
+    event = ask_event()
+
+    # Ставка и поручения
+    rate = ask_rate()
+    notes = ask_optional_text("Поручения/заметки на смену (текст, можно оставить пустым)")
+
+    # Спецслужбы: прибытия, затем убытия
+    services = ask_services()
+
+    # Формируем значения для столбцов служб
+    service_cells = [
+        build_service_cell(services[name][0], services[name][1])
+        for name in SERVICES
+    ]
+
+    # Собираем строку в порядке HEADERS
+    record = [
+        date_str,
+        fio,
+        start_str,
+        end_str,
+        hours,
+        event,
+        rate,
+        notes,
+    ] + service_cells
+    append_record(record)
+
+    # Итоговый отчёт на экран
+    print("\nЗапись сохранена:")
+    print(f"  Дата:         {date_str}")
+    print(f"  ФИО:          {fio}")
+    print(f"  Начало:       {start_str}")
+    print(f"  Конец:        {end_str}")
+    print(f"  Длительность: {hours} ч")
+    print(f"  Событие:      {event}")
+    print(f"  Ставка:       {rate} руб.")
+    print(f"  Поручения:    {notes}")
+    for name, cell in zip(SERVICES, service_cells):
+        if cell == "-":
+            print(f"  {name}: не было")
+        else:
+            print(f"  {name}: {cell}")
+    print(f"\nФайл: {os.path.abspath(LOG_FILE)}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Что изменилось
+
+**1. ФИО дежурного.**
+Новая функция `ask_required_text` — спрашивает и не пропускает пустой ввод. Поле добавлено вторым столбцом в CSV.
+
+**2. Хронология спецслужб (два этапа).**
+Функция `ask_services` теперь работает в два прохода:
+- **Этап 1 — прибытия:** по очереди спрашиваем «Прибытие <имя>». Enter = не приезжал.
+- **Этап 2 — убытия:** только для тех, кто прибыл. Приглашение содержит напоминание: `Ветврач прибыл в 06:35. Время убытия Ветврача (ЧЧ:ММ):`. Убытие обязательно (пустой ввод не принимается), иначе в журнале будет «прибыл, но не убыл».
+
+**3. Заметки и поручения.**
+Функция `ask_optional_text`: пустой ввод → сохраняется прочерк `-`.
+
+**4. Зарплата.**
+Функция `ask_rate`: пустой ввод → `0`; принимает и точку, и запятую как десятичный разделитель; отрицательные значения отклоняются. Целые числа сохраняются как `int` (без `.0`).
+
+**5. CSV.**
+Новая шапка:
+```
+Дата;ФИО;Время начала;Время конца;Длительность (ч);Событие;Ставка (руб.);Поручения;Ветврач (Приб/Уб);Молокоцех (Приб/Уб);Бухгалтерия (Приб/Уб);Электрик (Приб/Уб)
+```
+Значения служб формируются функцией `build_service_cell`:
+- не был → `-`
+- был → `06:35/09:00`
+
+### ⚠️ Важно про старый файл
+
+Шапка CSV **изменилась** (добавлены ФИО, Ставка, Поручения; столбцы служб объединены). Если у вас уже есть `shift_log.csv` со старой шапкой — новый скрипт допишет строки с другим числом столбцов, получится каша. Перед запуском:
+
+```bash
+mv shift_log.csv shift_log_old.csv
+```
+
+Скрипт создаст новый файл с правильными заголовками.
+
+### Пример работы
+
+```
+=== Учёт суточных смен сторожа ===
+Дата смены (ДД.ММ.ГГГГ): 15.11.2026
+ФИО дежурного сторожа: Иванов И.И.
+Время начала (ЧЧ:ММ): 08:00
+Время конца (ЧЧ:ММ): 08:00
+Что произошло (текст): Обход территории, всё спокойно
+Ставка за смену (руб., можно оставить пустым): 2500
+Поручения/заметки на смену (текст, можно оставить пустым): Проверить освещение у склада
+
+--- Прибытия ---
+Прибытие Ветврач (ЧЧ:ММ или Enter, если не было): 06:35
+Прибытие Молокоцех (ЧЧ:ММ или Enter, если не было): 
+  — Молокоцех: не было
+Прибытие Бухгалтерия (ЧЧ:ММ или Enter, если не было): 14:00
+Прибытие Электрик (ЧЧ:ММ или Enter, если не было): 
+  — Электрик: не было
+
+--- Убытия ---
+Ветврач прибыл в 06:35. Время убытия Ветврач (ЧЧ:ММ): 09:00
+Бухгалтерия прибыл в 14:00. Время убытия Бухгалтерия (ЧЧ:ММ): 15:30
+
+Запись сохранена:
+  Дата:         2026-11-15
+  ФИО:          Иванов И.И.
+  ...
+  Ветврач: 06:35/09:00
+  Молокоцех: не было
+  Бухгалтерия: 14:00/15:30
+  Электрик: не было
+```
+
+User: Благодарю.
+
+DeepSeek: Пожалуйста! 🙂
+
+Пара советов на будущее, чтобы журнал было удобно вести и анализировать:
+
+1. **Резервные копии.** `shift_log.csv` — это ваши данные. Раз в неделю/месяц копируйте файл куда-нибудь (`cp shift_log.csv shift_log_2026-11.csv`) — на случай случайного удаления или порчи.
+
+2. **Проверка старого файла.** Если снова будете менять структуру столбцов — не забывайте переименовывать старый CSV, иначе строки с разным числом полей перемешаются. Можно даже добавить в скрипт проверку: читать первую строку файла и сравнивать с `HEADERS` — если не совпадает, предлагать переименовать. Скажите, если захотите — допишу.
+
+3. **Excel и кириллица.** Файл в `utf-8` с разделителем `;` открывается в русском Excel двойным кликом. Если где-то откроется «кракозябрами» — используйте `Данные → Из текста/CSV` с кодировкой UTF-8.
+
+4. **Копейки в ставке.** Если появятся дробные ставки (например, `2500,50`), скрипт уже умеет — принимает и запятую, и точку.
+
+Если понадобится добавить ещё что-то (например, итоги за месяц, подсчёт суммы зарплаты по ФИО, экспорт в отдельный отчёт) — обращайтесь, допилим. Удачных смен! 🛡️
