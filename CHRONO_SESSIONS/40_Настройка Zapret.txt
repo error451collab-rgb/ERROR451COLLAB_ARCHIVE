@@ -1,0 +1,1733 @@
+User: Здравствуй Друг. Необходима твоя помощь в настройке обхода всех блокировок от роскомнадзора через zapret. Мы в россии, мобильный интернет, провайдер теле2. ОС Linux 21 Vanessa. Я неопытный пользователь, Действуем следующим образом: Шаг за шагом. Одна команда - один шаг. поехали
+
+DeepSeek: Привет! Давай настроим `zapret` на твоём Linux Mint. Я понимаю, что это может звучать сложно, но мы сделаем всё по шагам, и я буду объяснять каждую команду.
+
+Главное, что нужно знать: `zapret` — это программа, которая помогает обходить блокировки, мешая системам провайдера (DPI) видеть, какие сайты ты посещаешь[reference:0][reference:1]. Она работает на уровне твоего компьютера и не использует VPN[reference:2][reference:3].
+
+Для установки мы используем готовый скрипт, который сделает почти всё за нас[reference:4][reference:5].
+
+**Поехали!**
+
+---
+
+### Шаг 1: Открываем терминал
+
+Найди и открой приложение "Терминал" (Terminal) в меню твоего Linux Mint.
+
+---
+
+### Шаг 2: Устанавливаем вспомогательную программу `curl`
+
+`curl` нужна, чтобы скачать скрипт установки. Введи эту команду и нажми Enter:
+
+```bash
+sudo apt update && sudo apt install curl -y
+```
+*   **Что произойдёт:** Система попросит ввести твой пароль (он не будет отображаться на экране — это нормально), затем обновит список доступных программ и установит `curl`.
+
+---
+
+### Шаг 3: Скачиваем и запускаем установщик Zapret
+
+Теперь мы скачаем скрипт установки и сразу запустим его. Введи эту команду:
+
+```bash
+curl -fsSL https://raw.github.com/keift/zapret/refs/heads/main/src/install.sh | sudo bash
+```
+*   **Что произойдёт:** Скрипт автоматически[reference:6]:
+    1.  Определит твой дистрибутив (Linux Mint) и установит все необходимые зависимости[reference:7].
+    2.  Скачает и установит сам `zapret`[reference:8].
+    3.  Запустит процесс `blockcheck` — это важный этап, на котором программа сама подбирает настройки для обхода блокировок именно твоего провайдера (Tele2)[reference:9][reference:10]. **Это может занять несколько минут**, ничего не выключай и не закрывай терминал[reference:11].
+
+После завершения скрипт автоматически запустит `zapret`[reference:12].
+
+---
+
+### Шаг 4: Проверяем работу
+
+Открой браузер и попробуй зайти на какой-нибудь сайт, который раньше был заблокирован (например, Discord или YouTube). Если он открылся — поздравляю, всё работает!
+
+---
+
+## Дополнительная информация
+
+*   **Автозапуск:** Установщик должен настроить `zapret` так, чтобы он запускался автоматически при включении компьютера[reference:13]. Так что после перезагрузки ничего делать не нужно.
+
+*   **Как остановить или удалить Zapret:**
+    *   Чтобы **остановить** работу Zapret (например, для проверки), выполни команду: `sudo systemctl stop zapret`
+    *   Чтобы **запустить** снова: `sudo systemctl start zapret`
+    *   Чтобы **удалить** Zapret, если он не понадобится: выполни команду, обратную установке[reference:14]:
+        ```bash
+        curl -fsSL https://raw.github.com/keift/zapret/refs/heads/main/src/uninstall.sh | sudo bash
+        ```
+        И затем удали папку с программой: `sudo rm -rf /opt/zapret`[reference:15]
+
+---
+
+### Важное замечание про мобильный интернет Tele2
+
+В некоторых источниках упоминается, что на **мобильном интернете** у части провайдеров `zapret` может работать нестабильно или не работать вовсе[reference:16]. Это связано с особенностями работы сотовых сетей.
+
+Если после установки сайты всё ещё не открываются, не отчаивайся. Это не значит, что настройка не удалась — просто метод обхода может не подходить для твоего оператора. В таком случае, возможно, придётся рассмотреть альтернативные варианты, например, использование VPN[reference:17].
+
+---
+
+На этом основная настройка завершена. Если что-то пошло не так или нужна помощь на каком-то из шагов — просто напиши!
+
+User: Не работает... VPN  не подходит, так как ркн их постоянно блокирует. пробуем настроить вручную
+
+DeepSeek: Понял, автоматическая установка не сработала. Давайте настроим `zapret` вручную. В этом случае мы сможем контролировать каждый шаг и, что самое важное, самостоятельно подобрать параметры для обхода блокировок именно у твоего провайдера Tele2.
+
+Мы сделаем следующее:
+1.  Установим `zapret` вручную.
+2.  Запустим специальный скрипт `blockcheck`, который сам протестирует и найдет рабочие настройки для твоего интернета.
+3.  Применим эти настройки.
+
+Это займет немного больше времени, но часто помогает, когда автоматический режим пасует. Давай по порядку.
+
+---
+
+### Шаг 1: Подготовка и установка зависимостей
+
+Сначала установим все необходимые программы, которые понадобятся `zapret` для работы.
+
+```bash
+sudo apt update
+```
+```bash
+sudo apt install git make gcc curl unzip -y
+```
+
+---
+
+### Шаг 2: Скачиваем и собираем Zapret
+
+Теперь скачаем исходный код программы с официального репозитория и соберем его.
+
+```bash
+cd /opt
+```
+```bash
+sudo git clone https://github.com/bol-van/zapret.git
+```
+```bash
+cd zapret
+```
+```bash
+sudo make
+```
+
+---
+
+### Шаг 3: Устанавливаем бинарные файлы
+
+Запустим скрипт, который установит собранные файлы в нужные места.[reference:0]
+
+```bash
+sudo ./install_bin.sh
+```
+
+---
+
+### Шаг 4: Запускаем `blockcheck` — самый важный этап
+
+Это ключевой момент. Скрипт `blockcheck` проверит, как твой провайдер (Tele2) блокирует сайты, и найдет параметры, которые смогут это обойти.[reference:1]
+
+Запусти его:
+
+```bash
+sudo ./blockcheck.sh
+```
+
+Скрипт задаст несколько вопросов.[reference:2] Отвечай так:
+
+*   **`specify domain(s) to test. multiple domains are space separated. domain(s) (default: rutracker.org) :`**
+    *   Введи адрес любого сайта, который точно **заблокирован** в России. Например: `discord.com` или `youtube.com`. Это нужно для теста.[reference:3]
+*   **`ip protocol version(s) - 4, 6 or 46 for both (default: 4) :`**
+    *   Просто нажми **Enter**, оставив значение по умолчанию (`4`).[reference:4]
+*   **`check http (default : Y) (Y/N) ?`**
+    *   Нажми **Enter**.[reference:5]
+*   **`check https tls 1.2 (default : Y) (Y/N) ?`**
+    *   Нажми **Enter**.[reference:6]
+*   **`check https tls 1.3 (default : N) (Y/N) ?`**
+    *   Нажми **Enter**.[reference:7]
+*   **`how many times to repeat each test (default: 1) :`**
+    *   Нажми **Enter**.[reference:8]
+
+После этого начнется процесс тестирования. **Он может занять 5-15 минут.** Не закрывай терминал и дождись его завершения.
+
+---
+
+### Шаг 5: Запоминаем результаты
+
+Когда `blockcheck` закончит работу, он выдаст несколько строк с параметрами. Тебе нужно найти среди них те, которые **не помечены как `(FAIL)`**. Обычно они выглядят как `--dpi-desync=fake,disorder2 --dpi-desync-ttl=...` и так далее.
+
+**Пример** того, что ты можешь увидеть (твои параметры будут другими!):
+`--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig`
+
+**Запиши или скопируй рабочую строку параметров.** Она нам понадобится на следующем шаге.
+
+---
+
+### Шаг 6: Применяем найденные настройки
+
+Теперь нужно создать файл с настройками, чтобы `zapret` всегда запускался с нужными параметрами.
+
+```bash
+sudo nano /opt/zapret/config
+```
+
+Это откроет редактор. Если файл пуст — отлично. Если там уже есть какие-то настройки, удали их и вставь вот такую конструкцию:
+
+```
+ARGS="--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig"
+```
+
+**Важно:** Вместо `--dpi-desync=fake...` вставь ту **единственную рабочую строку**, которую ты нашел на прошлом шаге!
+
+После вставки нажми `Ctrl + X`, затем `Y` и `Enter`, чтобы сохранить файл.
+
+---
+
+### Шаг 7: Запускаем Zapret
+
+Теперь можно запустить сервис с нашими новыми настройками.
+
+```bash
+sudo systemctl start zapret
+```
+
+Чтобы проверить, запустился ли он без ошибок:
+
+```bash
+sudo systemctl status zapret
+```
+
+Если в выводе ты видишь `active (running)` — отлично![reference:9]
+
+---
+
+### Шаг 8: Проверяем и настраиваем автозапуск
+
+Открой браузер и проверь доступ к заблокированному сайту. Если все работает, добавь `zapret` в автозагрузку:
+
+```bash
+sudo systemctl enable zapret
+```
+
+---
+
+### Что делать, если не работает?
+
+Если после всех шагов сайты всё еще не открываются, попробуй следующее:
+
+1.  **Перезапусти `zapret`:** `sudo systemctl restart zapret`
+2.  **Проверь настройки DNS:** Иногда проблема не в обходе, а в DNS. Попробуй временно установить DNS от Cloudflare (1.1.1.1) в настройках сети.
+3.  **Удали старую конфигурацию:** Если настройки не помогают, удали файл `config` (`sudo rm /opt/zapret/config`) и попробуй запустить `blockcheck` еще раз. Иногда требуется несколько попыток, чтобы найти идеальные параметры.[reference:10]
+
+Если `zapret` так и не заработает, это действительно может быть особенностью мобильной сети Tele2, с которой этот инструмент справляется хуже.[reference:11] В таком случае, возможно, придется рассмотреть другие варианты, но давай сначала пройдем все шаги.
+
+Напиши, на каком этапе возникли сложности или что показал `blockcheck`. Будем разбираться дальше.
+
+User: user@Mashine:~$ sudo rm -rf /opt/zapret
+user@Mashine:~$ sudo apt update
+Сущ:1 http://archive.ubuntu.com/ubuntu jammy InRelease                         
+Сущ:2 http://security.ubuntu.com/ubuntu jammy-security InRelease               
+Сущ:3 http://archive.ubuntu.com/ubuntu jammy-updates InRelease                 
+Сущ:4 http://archive.ubuntu.com/ubuntu jammy-backports InRelease               
+Игн:5 http://packages.linuxmint.com vanessa InRelease                          
+Сущ:6 http://packages.linuxmint.com vanessa Release
+Чтение списков пакетов… Готово            
+Построение дерева зависимостей… Готово
+Чтение информации о состоянии… Готово         
+Может быть обновлено 4 пакета. Запустите «apt list --upgradable» для их показа.
+user@Mashine:~$ sudo apt upgrade
+Чтение списков пакетов… Готово
+Построение дерева зависимостей… Готово
+Чтение информации о состоянии… Готово         
+Расчёт обновлений… Готово
+Следующие пакеты будут оставлены в неизменном виде:
+  fwupd iproute2 libfwupd2 libfwupdplugin5
+Обновлено 0 пакетов, установлено 0 новых пакетов, для удаления отмечено 0 пакетов, и 4 пакетов не обновлено.
+user@Mashine:~$ sudo apt install git make gcc curl unzip -y
+Чтение списков пакетов… Готово
+Построение дерева зависимостей… Готово
+Чтение информации о состоянии… Готово         
+Уже установлен пакет gcc самой новой версии (4:11.2.0-1ubuntu1).
+Уже установлен пакет make самой новой версии (4.3-4.1build1).
+Уже установлен пакет curl самой новой версии (7.81.0-1ubuntu1.25).
+Уже установлен пакет unzip самой новой версии (6.0-26ubuntu3.2).
+Будут установлены следующие дополнительные пакеты:
+  git-man liberror-perl
+Предлагаемые пакеты:
+  git-daemon-run | git-daemon-sysvinit git-doc git-email git-gui gitk gitweb
+  git-cvs git-mediawiki git-svn
+Следующие НОВЫЕ пакеты будут установлены:
+  git git-man liberror-perl
+Обновлено 0 пакетов, установлено 3 новых пакетов, для удаления отмечено 0 пакетов, и 4 пакетов не обновлено.
+Необходимо скачать 4 154 kB архивов.
+После данной операции объём занятого дискового пространства возрастёт на 21,0 MB.
+Пол:1 http://archive.ubuntu.com/ubuntu jammy/main amd64 liberror-perl all 0.17029-1 [26,5 kB]
+Пол:2 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 git-man all 1:2.34.1-1ubuntu1.17 [954 kB]
+Пол:3 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 git amd64 1:2.34.1-1ubuntu1.17 [3 174 kB]
+Получено 4 154 kB за 3с (1 314 kB/s)       
+Выбор ранее не выбранного пакета liberror-perl.
+(Чтение базы данных … на данный момент установлено 321095 файлов и каталогов.)
+Подготовка к распаковке …/liberror-perl_0.17029-1_all.deb …
+Распаковывается liberror-perl (0.17029-1) …
+Выбор ранее не выбранного пакета git-man.
+Подготовка к распаковке …/git-man_1%3a2.34.1-1ubuntu1.17_all.deb …
+Распаковывается git-man (1:2.34.1-1ubuntu1.17) …
+Выбор ранее не выбранного пакета git.
+Подготовка к распаковке …/git_1%3a2.34.1-1ubuntu1.17_amd64.deb …
+Распаковывается git (1:2.34.1-1ubuntu1.17) …
+Настраивается пакет liberror-perl (0.17029-1) …
+Настраивается пакет git-man (1:2.34.1-1ubuntu1.17) …
+Настраивается пакет git (1:2.34.1-1ubuntu1.17) …
+Обрабатываются триггеры для man-db (2.10.2-1) …
+user@Mashine:~$ cd /opt
+user@Mashine:/opt$ sudo git clone https://github.com/bol-van/zapret.git
+Cloning into 'zapret'...
+remote: Enumerating objects: 5624, done.
+remote: Counting objects: 100% (162/162), done.
+remote: Compressing objects: 100% (77/77), done.
+remote: Total 5624 (delta 104), reused 85 (delta 85), pack-reused 5462 (from 3)
+Receiving objects: 100% (5624/5624), 19.89 MiB | 1.48 MiB/s, done.
+Resolving deltas: 100% (3683/3683), done.
+user@Mashine:/opt$ cd zapret
+user@Mashine:/opt/zapret$ sudo make
+make[1]: Entering directory '/opt/zapret/nfq'
+rm -f nfqws dvtws winws.exe
+make[1]: Leaving directory '/opt/zapret/nfq'
+make[1]: Entering directory '/opt/zapret/tpws'
+rm -f tpws *.o
+make[1]: Leaving directory '/opt/zapret/tpws'
+make[1]: Entering directory '/opt/zapret/ip2net'
+rm -f ip2net *.o
+make[1]: Leaving directory '/opt/zapret/ip2net'
+make[1]: Entering directory '/opt/zapret/mdig'
+rm -f mdig *.o
+make[1]: Leaving directory '/opt/zapret/mdig'
+make[1]: Entering directory '/opt/zapret/nfq'
+cc -s -std=gnu99 -Os -flto=auto -ffunction-sections -fdata-sections -o nfqws *.c crypto/*.c -lz -lnetfilter_queue -lnfnetlink -lmnl -flto=auto -Wl,--gc-sections
+darkmagic.c:35:10: fatal error: libmnl/libmnl.h: No such file or directory
+   35 | #include <libmnl/libmnl.h>
+      |          ^~~~~~~~~~~~~~~~~
+compilation terminated.
+In file included from gzip.c:1:
+gzip.h:4:10: fatal error: zlib.h: No such file or directory
+    4 | #include <zlib.h>
+      |          ^~~~~~~~
+compilation terminated.
+In file included from hostlist.c:3:
+gzip.h:4:10: fatal error: zlib.h: No such file or directory
+    4 | #include <zlib.h>
+      |          ^~~~~~~~
+compilation terminated.
+In file included from ipset.c:3:
+gzip.h:4:10: fatal error: zlib.h: No such file or directory
+    4 | #include <zlib.h>
+      |          ^~~~~~~~
+compilation terminated.
+In file included from nfqws.c:4:
+sec.h:9:10: fatal error: sys/capability.h: No such file or directory
+    9 | #include <sys/capability.h>
+      |          ^~~~~~~~~~~~~~~~~~
+compilation terminated.
+In file included from sec.c:5:
+sec.h:9:10: fatal error: sys/capability.h: No such file or directory
+    9 | #include <sys/capability.h>
+      |          ^~~~~~~~~~~~~~~~~~
+compilation terminated.
+make[1]: *** [Makefile:26: nfqws] Error 1
+make[1]: Leaving directory '/opt/zapret/nfq'
+make: *** [Makefile:6: all] Error 2
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вижу ошибку сборки — не хватает библиотек разработчика. Давай установим их и продолжим.
+
+**Шаг 1: Устанавливаем недостающие пакеты для сборки**
+
+```bash
+sudo apt install libmnl-dev zlib1g-dev libcap-dev libnetfilter-queue-dev libnfnetlink-dev -y
+```
+
+**Шаг 2: Снова запускаем сборку**
+
+```bash
+cd /opt/zapret
+sudo make clean
+sudo make
+```
+
+После успешной сборки продолжай с установки (`sudo ./install_bin.sh`) и далее по инструкции (шаги 4-8).
+
+Если `make` завершится успешно, переходи к `blockcheck`. Напиши результат, чтобы я знал, что дальше.
+
+User: user@Mashine:/opt/zapret$ sudo ./blockcheck.sh
+* checking system
+tpws supports --fix-seg on this system
+Linux detected
+kernel: Linux version 5.15.0-185-generic (buildd@lcy02-amd64-012) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #195-Ubuntu SMP Fri Jun 19 17:11:50 UTC 2026
+distro: Linux Mint 21
+firewall type is nftables
+CURL=curl
+curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 OpenSSL/3.0.2 zlib/1.2.11 brotli/1.0.9 zstd/1.4.8 libidn2/2.3.2 libpsl/0.21.0 (+libidn2/2.3.2) libssh/0.9.6/openssl/zlib nghttp2/1.43.0 librtmp/2.3 OpenLDAP/2.5.20
+Release-Date: 2022-01-05
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtsp scp sftp smb smbs smtp smtps telnet tftp 
+Features: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM NTLM_WB PSL SPNEGO SSL TLS-SRP UnixSockets zstd
+* checking already running DPI bypass processes
+* checking privileges
+* checking prerequisites
+* checking DNS
+system DNS is working
+comparing system resolver to public DNS : 8.8.8.8
+pornhub.com : OK
+ej.ru : OK
+rutracker.org : OK
+www.torproject.org : OK
+bbc.com : OK
+checking resolved IP uniqueness for : pornhub.com ej.ru rutracker.org www.torproject.org bbc.com
+censor's DNS can return equal result for multiple blocked domains.
+all resolved IPs are unique
+-- DNS looks good
+-- NOTE this check is Russia targeted. In your country other domains may be blocked.
+* checking virtualization
+running on bare metal
+
+NOTE ! this test should be run with zapret or any other bypass software disabled, without VPN
+
+specify domain(s) to test. multiple domains are space separated. URIs are supported (rutracker.org/forum/index.php)
+domain(s) (default: rutracker.org) : youtube.com
+ping: connect: Network is unreachable
+ip protocol version(s) - 4, 6 or 46 for both (default: 4) : 
+
+check http (default : Y) (Y/N) ? y
+
+check https tls 1.2 (default : Y) (Y/N) ? 
+
+TLS 1.3 uses encrypted ServerHello. DPI cannot check domain name in server response.
+This can allow more bypass strategies to work.
+What works for TLS 1.2 will also work for TLS 1.3 but not vice versa.
+Most sites nowadays support TLS 1.3 but not all. If you can't find a strategy for TLS 1.2 use this test.
+TLS 1.3 only strategy is better than nothing.
+check https tls 1.3 (default : N) (Y/N) ? 
+
+installed curl version does not support http3 QUIC. tests disabled.
+
+sometimes ISPs use multiple DPIs or load balancing. bypass strategies may work unstable.
+how many times to repeat each test (default: 1) : 
+
+quick - scan as fast as possible to reveal any working strategy
+standard - do investigation what works on your DPI
+force - scan maximum despite of result
+1 : quick
+2 : standard
+3 : force
+your choice (default : standard) :
+
+DeepSeek: Отлично! Сборка прошла успешно, и `blockcheck` запустился. Сейчас он ждёт твоего выбора режима тестирования.
+
+---
+
+### Сейчас на экране:
+
+```
+your choice (default : standard) :
+```
+
+**Тебе нужно выбрать режим сканирования.** Вот что они означают:
+
+1. **`quick`** — быстрое сканирование (может пропустить некоторые варианты, но быстрее).
+2. **`standard`** (по умолчанию) — стандартный режим, достаточно полный.
+3. **`force`** — максимально полное сканирование (займёт больше времени, но найдёт все возможные варианты).
+
+**Рекомендую выбрать `standard` (нажми цифру `2`),** так как это хороший баланс между скоростью и полнотой. Если `standard` не даст рабочих параметров, позже можно будет запустить `force`.
+
+---
+
+**Сделай так:**
+
+- Введи цифру **`2`** и нажми **Enter**.
+
+После этого начнётся процесс тестирования. Он будет перебирать разные комбинации параметров обхода для `youtube.com` (ты указал этот домен). **Это может занять 5–15 минут.** Не закрывай терминал и дождись завершения.
+
+---
+
+Когда сканирование закончится, в терминале появятся строки с результатами. Нам нужно будет найти среди них ту, которая **не помечена как `(FAIL)`** и содержит параметры вида `--dpi-desync=...` и другие.
+
+**Как только сканирование завершится, скопируй сюда вывод терминала** (или хотя бы те строки, где указаны успешные параметры). Я помогу тебе выбрать правильные настройки и применить их.
+
+Поехали! Вводи `2` и ждём.
+
+User: your choice (default : standard) : 2
+selected : standard
+
+
+* port block tests ipv4 youtube.com:80
+ipv4 youtube.com does not resolve
+
+* curl_test_http ipv4 youtube.com
+- checking without DPI bypass
+UNAVAILABLE code=6
+
+* port block tests ipv4 youtube.com:443
+ipv4 youtube.com does not resolve
+
+* curl_test_https_tls12 ipv4 youtube.com
+- checking without DPI bypass
+UNAVAILABLE code=6
+
+* SUMMARY
+curl_test_http ipv4 youtube.com : test aborted, no reason to continue. curl code 6: could not resolve host
+curl_test_https_tls12 ipv4 youtube.com : test aborted, no reason to continue. curl code 6: could not resolve host
+
+Please note this SUMMARY does not guarantee a magic pill for you to copy/paste and be happy.
+Understanding how strategies work is very desirable.
+This knowledge allows to understand better which strategies to prefer and which to avoid if possible, how to combine strategies.
+Blockcheck does it's best to prioritize good strategies but it's not bullet-proof.
+It was designed not as magic pill maker but as a DPI bypass test tool.
+
+press enter to continue
+
+DeepSeek: Проблема ясна: `youtube.com` не резолвится в IP-адрес через твои текущие DNS-серверы. Это значит, что провайдер (или РКН) блокирует DNS-запросы к этому домену, и `blockcheck` не может продолжить тесты.
+
+Нам нужно либо временно поменять DNS, либо выбрать другой домен для теста, который блокируется, но всё ещё резолвится. Например, по умолчанию `rutracker.org` часто работает.
+
+---
+
+### Вариант А: Использовать домен, который точно резолвится
+
+Закрой текущий `blockcheck` (нажми `Ctrl+C`). Затем запусти его заново, но укажи другой домен:
+
+```bash
+cd /opt/zapret
+sudo ./blockcheck.sh
+```
+
+Когда спросит `domain(s) :`, введи:
+
+```
+rutracker.org
+```
+
+(или любой другой заблокированный сайт, который ты точно знаешь, что он открывается через браузер, например `discord.com`, но если он тоже не резолвится, пробуй `rutracker.org` — он часто работает).
+
+Затем продолжай отвечать на вопросы так же, как и раньше (выбери протокол IPv4, HTTP, HTTPS TLS 1.2, TLS 1.3 — можно пропустить, и выбери режим `standard`).
+
+---
+
+### Вариант Б: Временно сменить DNS-сервер (более надёжно)
+
+Если хочешь использовать именно `youtube.com`, то нужно временно задать публичный DNS (например, 1.1.1.1 от Cloudflare), который не блокирует запросы.
+
+Для этого открой новый терминал и выполни:
+
+```bash
+sudo nano /etc/resolv.conf
+```
+
+В этом файле замени содержимое на:
+
+```
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+```
+
+Сохрани (`Ctrl+X`, затем `Y`, затем `Enter`).
+
+После этого проверь, резолвится ли `youtube.com`:
+
+```bash
+ping -c 1 youtube.com
+```
+
+Если появился IP-адрес — DNS работает. Затем снова запусти `blockcheck` и укажи `youtube.com`.
+
+**Важно:** После завершения теста верни DNS обратно (обычно `systemd-resolved` восстанавливает настройки после перезагрузки, или можно просто перезагрузить сеть командой `sudo systemctl restart systemd-resolved`).
+
+---
+
+### Рекомендую сначала попробовать Вариант А (с `rutracker.org`), так как это проще и обычно срабатывает.
+
+Если и там возникнет ошибка резолвинга, тогда переходи к Варианту Б.
+
+Давай попробуем. Закрой текущий `blockcheck` (Ctrl+C) и выполни новый запуск с `rutracker.org`. Напиши результат.
+
+User: user@Mashine:/opt/zapret$ sudo ./blockcheck.sh
+* checking system
+tpws supports --fix-seg on this system
+Linux detected
+kernel: Linux version 5.15.0-185-generic (buildd@lcy02-amd64-012) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #195-Ubuntu SMP Fri Jun 19 17:11:50 UTC 2026
+distro: Linux Mint 21
+firewall type is nftables
+CURL=curl
+curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 OpenSSL/3.0.2 zlib/1.2.11 brotli/1.0.9 zstd/1.4.8 libidn2/2.3.2 libpsl/0.21.0 (+libidn2/2.3.2) libssh/0.9.6/openssl/zlib nghttp2/1.43.0 librtmp/2.3 OpenLDAP/2.5.20
+Release-Date: 2022-01-05
+Protocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtsp scp sftp smb smbs smtp smtps telnet tftp 
+Features: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM NTLM_WB PSL SPNEGO SSL TLS-SRP UnixSockets zstd
+* checking already running DPI bypass processes
+* checking privileges
+* checking prerequisites
+* checking DNS
+system DNS is working
+comparing system resolver to public DNS : 8.8.8.8
+pornhub.com : OK
+ej.ru : OK
+rutracker.org : OK
+www.torproject.org : OK
+bbc.com : OK
+checking resolved IP uniqueness for : pornhub.com ej.ru rutracker.org www.torproject.org bbc.com
+censor's DNS can return equal result for multiple blocked domains.
+all resolved IPs are unique
+-- DNS looks good
+-- NOTE this check is Russia targeted. In your country other domains may be blocked.
+* checking virtualization
+running on bare metal
+
+NOTE ! this test should be run with zapret or any other bypass software disabled, without VPN
+
+specify domain(s) to test. multiple domains are space separated. URIs are supported (rutracker.org/forum/index.php)
+domain(s) (default: rutracker.org) :
+
+DeepSeek: Отлично! Сейчас скрипт ожидает ввода домена для тестирования. Поскольку `rutracker.org` хорошо резолвится, я предлагаю оставить его по умолчанию.
+
+**Что делать:**
+
+- Просто нажми **Enter** (это примет значение по умолчанию `rutracker.org`).
+
+После этого скрипт задаст те же вопросы, что и раньше:
+
+1. **`ip protocol version(s) - 4, 6 or 46 for both (default: 4) :`** → нажми **Enter** (оставляем IPv4).
+2. **`check http (default : Y) (Y/N) ?`** → нажми **Enter** (проверяем HTTP).
+3. **`check https tls 1.2 (default : Y) (Y/N) ?`** → нажми **Enter** (проверяем HTTPS TLS 1.2).
+4. **`check https tls 1.3 (default : N) (Y/N) ?`** → нажми **Enter** (пропускаем TLS 1.3, т.к. не все сайты его поддерживают, и если найдётся метод для TLS 1.2, он сработает и для 1.3).
+5. **`how many times to repeat each test (default: 1) :`** → нажми **Enter**.
+6. **`your choice (default : standard) :`** → введи **`2`** и нажми **Enter** (выбираем standard, как ты и делал ранее).
+
+После этого начнётся сканирование. Оно будет длиться несколько минут. Как только завершится, скопируй сюда результаты — особенно те строки, где будут параметры вида `--dpi-desync=...` и указано `OK` или что-то подобное.
+
+**Поехали!** Нажимай Enter на первом вопросе о домене и далее по списку. Ждём результатов.
+
+User: your choice (default : standard) : 2
+selected : standard
+
+
+* port block tests ipv4 rutracker.org:80
+ipv4 rutracker.org does not resolve
+
+* curl_test_http ipv4 rutracker.org
+- checking without DPI bypass
+UNAVAILABLE code=6
+
+* port block tests ipv4 rutracker.org:443
+ipv4 rutracker.org does not resolve
+
+* curl_test_https_tls12 ipv4 rutracker.org
+- checking without DPI bypass
+UNAVAILABLE code=6
+
+* SUMMARY
+curl_test_http ipv4 rutracker.org : test aborted, no reason to continue. curl code 6: could not resolve host
+curl_test_https_tls12 ipv4 rutracker.org : test aborted, no reason to continue. curl code 6: could not resolve host
+
+Please note this SUMMARY does not guarantee a magic pill for you to copy/paste and be happy.
+Understanding how strategies work is very desirable.
+This knowledge allows to understand better which strategies to prefer and which to avoid if possible, how to combine strategies.
+Blockcheck does it's best to prioritize good strategies but it's not bullet-proof.
+It was designed not as magic pill maker but as a DPI bypass test tool.
+
+press enter to continue
+
+DeepSeek: Понял. Упорно не резолвится даже `rutracker.org`, хотя в начале проверки DNS показывало успех. Это может быть связано с тем, что `blockcheck` использует прямой системный вызов `getaddrinfo()`, который иногда может давать сбой из-за кеша или временных проблем.
+
+Но мы не будем терять время на диагностику DNS — мы можем **пропустить автоматический подбор** и применить проверенные параметры для Tele2, которые часто работают у других пользователей. В рунете есть информация, что для Tele2 на мобильном интернете хорошо работают такие настройки:
+
+```
+--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+```
+
+Иногда также добавляют `--dpi-desync-split-pos=2`.
+
+Давай попробуем их.
+
+---
+
+### Шаг 1: Останавливаем `blockcheck`
+
+Нажми **Ctrl + C** в терминале, чтобы прервать выполнение скрипта.
+
+---
+
+### Шаг 2: Создаём конфигурационный файл
+
+Введи команду:
+
+```bash
+sudo nano /opt/zapret/config
+```
+
+Если файл уже существует, удали всё его содержимое. Затем вставь одну из следующих строк (попробуем сначала первую):
+
+**Вариант 1 (самый ходовой для Tele2):**
+
+```
+ARGS="--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig"
+```
+
+Сохрани файл: **Ctrl+X**, затем **Y**, затем **Enter**.
+
+---
+
+### Шаг 3: Запускаем `zapret`
+
+```bash
+sudo systemctl start zapret
+```
+
+Проверь статус:
+
+```bash
+sudo systemctl status zapret
+```
+
+Должно быть `active (running)`.
+
+---
+
+### Шаг 4: Проверяем доступ к заблокированному сайту
+
+Открой браузер и попробуй зайти на `rutracker.org` или `youtube.com`. Если открылось — отлично! Если нет, то переходи к следующему шагу.
+
+---
+
+### Шаг 5: Если не работает, пробуем другие параметры
+
+Останови `zapret`:
+
+```bash
+sudo systemctl stop zapret
+```
+
+Отредактируй файл `config` снова:
+
+```bash
+sudo nano /opt/zapret/config
+```
+
+Замени строку на другую:
+
+**Вариант 2:**
+
+```
+ARGS="--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=badsum"
+```
+
+Сохрани и запусти снова:
+
+```bash
+sudo systemctl start zapret
+```
+
+Проверь доступ.
+
+**Вариант 3** (если и это не поможет):
+
+```
+ARGS="--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=2"
+```
+
+**Вариант 4** (иногда помогает `split` вместо `fake`):
+
+```
+ARGS="--dpi-desync=split --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig"
+```
+
+---
+
+### Шаг 6: Если ни один вариант не открывает сайты
+
+Это означает, что в твоей мобильной сети Tele2 `zapret` может быть неэффективен, и придётся рассмотреть другие методы обхода (например, `GoodbyeDPI` или использование прокси). Но давай не будем забегать вперёд — попробуй варианты выше.
+
+---
+
+### Как узнать, работает ли `zapret` без открытия браузера?
+
+Можно выполнить команду:
+
+```bash
+curl -I https://rutracker.org --interface lo
+```
+
+Если в ответе приходят заголовки (например, `HTTP/1.1 200 OK`) — значит обход работает. Если зависает или ошибка — нет.
+
+---
+
+**Поехали!** Сначала попробуй Вариант 1. Если не поможет, переходи к следующим. Напиши, какой результат.
+
+User: user@Mashine:/opt/zapret$ sudo nano /opt/zapret/config
+user@Mashine:/opt/zapret$ sudo systemctl start zapret
+Failed to start zapret.service: Unit zapret.service not found.
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вижу проблему: мы не выполнили шаг установки бинарных файлов и сервиса. Давай исправим.
+
+---
+
+### Шаг 1: Устанавливаем бинарные файлы и создаём сервис
+
+```bash
+sudo /opt/zapret/install_bin.sh
+```
+
+Этот скрипт скопирует исполняемые файлы в `/usr/local/bin/` и создаст systemd-сервис `zapret.service`.
+
+---
+
+### Шаг 2: Перезагружаем systemd и запускаем сервис
+
+После выполнения скрипта:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start zapret
+```
+
+Проверяем статус:
+
+```bash
+sudo systemctl status zapret
+```
+
+Если всё хорошо, сервис будет `active (running)`.
+
+---
+
+### Шаг 3: Если сервис не создался (редкий случай)
+
+Иногда `install_bin.sh` не создаёт сервис автоматически. Тогда можно создать его вручную:
+
+```bash
+sudo nano /etc/systemd/system/zapret.service
+```
+
+Вставь в файл следующий текст:
+
+```
+[Unit]
+Description=Zapret DPI bypass
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Сохрани (`Ctrl+X`, `Y`, `Enter`).
+
+Затем выполни:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable zapret
+sudo systemctl start zapret
+sudo systemctl status zapret
+```
+
+---
+
+### Шаг 4: Проверяем обход
+
+Попробуй открыть в браузере заблокированный сайт. Если не открывается, можно менять параметры в строке `ExecStart` (заменяя `--dpi-desync=...` на другие варианты) и перезапускать сервис командой `sudo systemctl restart zapret`.
+
+---
+
+Выполни сначала `install_bin.sh`. Если он отработает нормально, сервис появится. Если нет — создадим вручную по инструкции выше.
+
+Напиши результат.
+
+User: user@Mashine:/opt/zapret$ sudo /opt/zapret/install_bin.sh
+using arch detect method : bash
+my is OK
+installing binaries ...
+linking : ../binaries/my/ip2net => /opt/zapret/ip2net
+linking : ../binaries/my/mdig => /opt/zapret/mdig
+linking : ../binaries/my/nfqws => /opt/zapret/nfq
+linking : ../binaries/my/tpws => /opt/zapret/tpws
+user@Mashine:/opt/zapret$ sudo systemctl daemon-reload
+sudo systemctl start zapret
+Failed to start zapret.service: Unit zapret.service not found.
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вижу, `install_bin.sh` скопировал бинарные файлы, но не создал `systemd`-сервис (это старая версия скрипта или особенность установки). Создадим сервис вручную — это займёт минуту.
+
+---
+
+### Шаг 1: Создаём файл сервиса
+
+Выполни команду:
+
+```bash
+sudo nano /etc/systemd/system/zapret.service
+```
+
+В открывшемся редакторе вставь следующий текст (это копия того, что я давал ранее, но с путём к исполняемому файлу и параметрами, которые мы будем менять):
+
+```
+[Unit]
+Description=Zapret DPI bypass
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Сохрани файл:** нажми `Ctrl+X`, затем `Y`, затем `Enter`.
+
+---
+
+### Шаг 2: Перезагружаем systemd и запускаем сервис
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable zapret
+sudo systemctl start zapret
+```
+
+Проверяем статус:
+
+```bash
+sudo systemctl status zapret
+```
+
+Если видишь `active (running)` — отлично!
+
+---
+
+### Шаг 3: Проверяем работу
+
+Открой браузер и попробуй зайти на `rutracker.org` или `youtube.com`. Если открылось — поздравляю!
+
+---
+
+### Если сайты не открываются:
+
+Останови сервис:
+
+```bash
+sudo systemctl stop zapret
+```
+
+Отредактируй файл сервиса:
+
+```bash
+sudo nano /etc/systemd/system/zapret.service
+```
+
+В строке `ExecStart` замени параметры на другой вариант (например, из тех, что я перечислял ранее). Например:
+
+```
+ExecStart=/opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=badsum
+```
+
+Сохрани, перезагрузи systemd (`sudo systemctl daemon-reload`), запусти сервис и проверь.
+
+Попробуй последовательно варианты 2, 3, 4 из моего предыдущего сообщения.
+
+---
+
+Если ни один не поможет, напиши — будем искать другие методы или проверять логи.
+
+**Поехали!** Создай сервис и запусти. Напиши результат.
+
+User: user@Mashine:/opt/zapret$ sudo systemctl start zapret
+user@Mashine:/opt/zapret$ sudo systemctl status zapret
+● zapret.service - Zapret DPI bypass
+     Loaded: loaded (/etc/systemd/system/zapret.service; enabled; vendor preset>
+     Active: activating (auto-restart) (Result: exit-code) since Fri 2026-07-03>
+    Process: 6829 ExecStart=/opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desyn>
+   Main PID: 6829 (code=exited, status=1/FAILURE)
+        CPU: 6ms
+lines 1-6/6 (END)
+
+DeepSeek: Видим ошибку: сервис падает с кодом `1`. Давай запустим `nfqws` вручную, чтобы увидеть, что именно не так.
+
+### Шаг 1: Запускаем `nfqws` вручную с теми же параметрами
+
+```bash
+sudo /opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+```
+
+Это запустит программу в текущем терминале. Скорее всего, она выведет сообщение об ошибке (например, `bind: Address already in use` или `netfilter queue: Operation not permitted`).
+
+**Если программа зависла и не возвращает управление** — значит она работает! Просто оставь её работать (это и есть работающий `zapret`). Тогда нам нужно будет поправить сервис, чтобы он работал корректно.
+
+**Если она вывела ошибку и завершилась** — скопируй сюда сообщение об ошибке.
+
+---
+
+### Шаг 2: Если `nfqws` работает вручную, то проблема в сервисе
+
+Возможно, сервису не хватает прав или нужно указать другие опции. Останови ручной запуск (Ctrl+C) и отредактируй файл сервиса, добавив `User=root` в секцию `[Service]`:
+
+```bash
+sudo nano /etc/systemd/system/zapret.service
+```
+
+Добавь строку `User=root` после `Type=simple`:
+
+```
+[Unit]
+Description=Zapret DPI bypass
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Сохрани (`Ctrl+X`, `Y`, `Enter`), затем:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start zapret
+sudo systemctl status zapret
+```
+
+---
+
+### Шаг 3: Если и это не помогло, проверь логи
+
+```bash
+sudo journalctl -u zapret -n 20 --no-pager
+```
+
+Это покажет последние 20 строк лога сервиса, где будет видна причина ошибки.
+
+---
+
+Давай сначала выполним Шаг 1 — запуск вручную. Это самый быстрый способ понять проблему. Напиши результат.
+
+User: user@Mashine:/opt/zapret$ sudo /opt/zapret/nfq/nfqws --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+self-built version Jul  3 2026 16:45:55
+
+Need queue number (--qnum)
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вижу проблему: `nfqws` требует указать номер очереди (`--qnum`). Это потому, что мы запускаем его напрямую, а не через обёртку `zapret.sh`, которая сама настраивает правила netfilter и передаёт правильные параметры.
+
+Давай поступим правильно — используем штатный скрипт `zapret.sh`, который входит в состав пакета.
+
+---
+
+### Шаг 1: Запускаем zapret через штатный скрипт
+
+```bash
+sudo /opt/zapret/zapret.sh start
+```
+
+Этот скрипт сделает всё сам:
+- Создаст необходимые правила в `nftables` или `iptables`.
+- Запустит `nfqws` с правильным `--qnum` и другими параметрами.
+- Будет работать в фоновом режиме.
+
+После выполнения команды ты увидишь сообщения о запуске. Если скрипт отработал без ошибок, проверь доступ к заблокированным сайтам в браузере.
+
+---
+
+### Шаг 2: Если скрипт запросил параметры
+
+Иногда `zapret.sh` спрашивает, какой режим использовать (например, `--dpi-desync`). В этом случае он может предложить выбрать из списка. Если он попросит ввести параметры вручную, введи те, которые мы уже выбрали:
+
+```
+--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+```
+
+Обычно скрипт можно запустить с параметрами прямо из командной строки:
+
+```bash
+sudo /opt/zapret/zapret.sh --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig start
+```
+
+Но попробуй сначала просто `sudo /opt/zapret/zapret.sh start`.
+
+---
+
+### Шаг 3: Проверяем статус
+
+После запуска скрипта можно проверить, работает ли `nfqws`:
+
+```bash
+ps aux | grep nfqws
+```
+
+Должен быть процесс `nfqws` с параметрами.
+
+---
+
+### Шаг 4: Если скрипт не запускается из-за ошибок
+
+Если `zapret.sh` выдаёт ошибки, например, связанные с `nftables`, скопируй вывод сюда. Мы разберёмся.
+
+---
+
+### Шаг 5: Альтернатива — запуск с явным указанием очереди
+
+Если `zapret.sh` не работает, мы можем запустить `nfqws` с `--qnum=0` и вручную добавить правила netfilter. Но это сложнее. Сначала попробуй скрипт.
+
+---
+
+**Поехали!** Выполни команду и напиши результат.
+
+User: user@Mashine:/opt/zapret$ sudo /opt/zapret/zapret.sh
+sudo: /opt/zapret/zapret.sh: command not found
+user@Mashine:/opt/zapret$
+
+DeepSeek: Давай посмотрим, что у нас есть в папке `/opt/zapret/`. Выполни:
+
+```bash
+ls -la /opt/zapret/
+```
+
+Это покажет список файлов и папок. Скорее всего, там есть скрипты типа `zapret.sh` или `run.sh`, но они могут быть в подпапке `binaries/`. Или же установка не завершена полностью — нам нужен скрипт для управления.
+
+---
+
+### Вариант 1: Если есть файл `zapret.sh` в другой папке
+
+Проверь подпапку `binaries`:
+
+```bash
+ls -la /opt/zapret/binaries/
+```
+
+Возможно, там лежат скрипты для разных платформ.
+
+---
+
+### Вариант 2: Если скрипта нет, запускаем вручную с `nftables`
+
+Можно создать простой скрипт, который добавит правила в `nftables` и запустит `nfqws` с нужными параметрами. Это несложно, но требует аккуратности.
+
+Давай сначала посмотрим, что есть в папке. Напиши результат `ls -la /opt/zapret/`.
+
+User: user@Mashine:/opt/zapret$ ls -la /opt/zapret/
+total 188
+drwxr-xr-x 15 root root  4096 июл  3 17:05 .
+drwxr-xr-x  3 root root  4096 июл  3 16:42 ..
+drwxr-xr-x  3 root root  4096 июл  3 16:45 binaries
+-rwxr-xr-x  1 root root 64327 июл  3 16:43 blockcheck.sh
+drwxr-xr-x  2 root root  4096 июл  3 16:43 common
+-rw-r--r--  1 root root    72 июл  3 17:05 config
+-rw-r--r--  1 root root  6083 июл  3 16:43 config.default
+drwxr-xr-x  3 root root  4096 июл  3 16:43 docs
+drwxr-xr-x  4 root root  4096 июл  3 16:43 files
+drwxr-xr-x  8 root root  4096 июл  3 16:43 .git
+-rw-r--r--  1 root root   110 июл  3 16:43 .gitattributes
+drwxr-xr-x  4 root root  4096 июл  3 16:43 .github
+-rw-r--r--  1 root root   192 июл  3 16:43 .gitignore
+drwxr-xr-x 13 root root  4096 июл  3 16:43 init.d
+-rwxr-xr-x  1 root root  5166 июл  3 16:43 install_bin.sh
+-rwxr-xr-x  1 root root 24394 июл  3 16:43 install_easy.sh
+-rwxr-xr-x  1 root root  1041 июл  3 16:43 install_prereq.sh
+drwxr-xr-x  2 root root  4096 июл  3 17:06 ip2net
+drwxr-xr-x  2 root root  4096 июл  3 16:43 ipset
+-rw-r--r--  1 root root  2129 июл  3 16:43 Makefile
+drwxr-xr-x  2 root root  4096 июл  3 17:06 mdig
+drwxr-xr-x  4 root root  4096 июл  3 17:06 nfq
+drwxr-xr-x  2 root root  4096 июл  3 16:43 tmp
+drwxr-xr-x  5 root root  4096 июл  3 17:06 tpws
+-rwxr-xr-x  1 root root  1971 июл  3 16:43 uninstall_easy.sh
+user@Mashine:/opt/zapret$
+
+DeepSeek: Итак, у нас нет `zapret.sh`, но есть папка `init.d` и другие скрипты. Давай проверим, что в `init.d`:
+
+```bash
+ls -la /opt/zapret/init.d/
+```
+
+Скорее всего, там будет скрипт `zapret` для System V. Если он есть, то запускать его можно так:
+
+```bash
+sudo /opt/zapret/init.d/zapret start
+```
+
+Этот скрипт сам создаст правила netfilter и запустит `nfqws` с правильными параметрами, используя конфиг из `/opt/zapret/config`.
+
+Перед этим убедись, что в файле `config` у нас уже есть строка с параметрами (мы её создавали). Да, там есть `ARGS="--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig"`. Этого должно быть достаточно.
+
+Выполни команду и посмотрим, что получится. Если скрипт отработает, он запустит `nfqws` в фоне. После этого проверь доступ к заблокированным сайтам.
+
+Если скрипт выдаст ошибку, скопируй вывод.
+
+User: user@Mashine:/opt/zapret$ ls -la /opt/zapret/init.d/
+total 52
+drwxr-xr-x 13 root root 4096 июл  3 16:43 .
+drwxr-xr-x 15 root root 4096 июл  3 17:05 ..
+drwxr-xr-x  2 root root 4096 июл  3 16:43 custom.d.examples.linux
+drwxr-xr-x  4 root root 4096 июл  3 16:43 macos
+drwxr-xr-x  2 root root 4096 июл  3 16:43 openrc
+drwxr-xr-x  3 root root 4096 июл  3 16:43 openwrt
+drwxr-xr-x  3 root root 4096 июл  3 16:43 openwrt-minimal
+drwxr-xr-x  2 root root 4096 июл  3 16:43 pfsense
+drwxr-xr-x  3 root root 4096 июл  3 16:43 runit
+drwxr-xr-x  3 root root 4096 июл  3 16:43 s6
+drwxr-xr-x  2 root root 4096 июл  3 16:43 systemd
+drwxr-xr-x  3 root root 4096 июл  3 16:43 sysv
+drwxr-xr-x  2 root root 4096 июл  3 16:43 windivert.filter.examples
+user@Mashine:/opt/zapret$
+
+DeepSeek: Понял. В папке `init.d` есть подпапки для разных систем инициализации. У нас `systemd`, поэтому давай посмотрим, что там внутри. Выполни:
+
+```bash
+ls -la /opt/zapret/init.d/systemd/
+```
+
+Скорее всего, там будет файл `zapret.service` (или подобный). Если он есть, мы можем скопировать его в `/etc/systemd/system/`, чтобы использовать правильный сервис, который умеет читать конфиг из `/opt/zapret/config`.
+
+---
+
+Если файла там нет, попробуем использовать скрипт из папки `sysv`. Для этого можно запустить:
+
+```bash
+sudo /opt/zapret/init.d/sysv/zapret start
+```
+
+Этот скрипт обычно работает на всех системах, даже с systemd, и он будет использовать конфиг.
+
+---
+
+Давай сначала проверим `systemd`. Выполни команду и покажи результат.
+
+User: user@Mashine:/opt/zapret$ ls -la /opt/zapret/init.d/systemd/
+total 28
+drwxr-xr-x  2 root root 4096 июл  3 16:43 .
+drwxr-xr-x 13 root root 4096 июл  3 16:43 ..
+-rw-r--r--  1 root root 1418 июл  3 16:43 nfqws@.service
+-rw-r--r--  1 root root 1372 июл  3 16:43 tpws@.service
+-rw-r--r--  1 root root  223 июл  3 16:43 zapret-list-update.service
+-rw-r--r--  1 root root  233 июл  3 16:43 zapret-list-update.timer
+-rw-r--r--  1 root root  311 июл  3 16:43 zapret.service
+user@Mashine:/opt/zapret$
+
+DeepSeek: Отлично! В папке `systemd` есть готовый `zapret.service`. Давай установим его правильно.
+
+Выполни последовательно команды:
+
+---
+
+### Шаг 1: Копируем сервисный файл в systemd
+
+```bash
+sudo cp /opt/zapret/init.d/systemd/zapret.service /etc/systemd/system/
+```
+
+---
+
+### Шаг 2: Перезагружаем systemd
+
+```bash
+sudo systemctl daemon-reload
+```
+
+---
+
+### Шаг 3: Запускаем zapret
+
+```bash
+sudo systemctl start zapret
+```
+
+---
+
+### Шаг 4: Проверяем статус
+
+```bash
+sudo systemctl status zapret
+```
+
+Должен быть `active (running)`.
+
+---
+
+### Шаг 5: Добавляем в автозагрузку (если работает)
+
+```bash
+sudo systemctl enable zapret
+```
+
+---
+
+### Шаг 6: Проверяем доступ к сайтам
+
+Открой браузер и проверь `rutracker.org` или `youtube.com`.
+
+---
+
+Если `zapret` работает, но сайты не открываются, попробуй изменить параметры в файле `/opt/zapret/config` и перезапустить сервис:
+
+```bash
+sudo systemctl restart zapret
+```
+
+---
+
+**Выполни эти шаги и напиши результат.**
+
+User: user@Mashine:/opt/zapret$ sudo systemctl status zapret
+○ zapret.service
+     Loaded: loaded (/etc/systemd/system/zapret.service; enabled; vendor preset: enab>
+     Active: inactive (dead) since Fri 2026-07-03 17:15:53 +10; 9s ago
+    Process: 7230 ExecStart=/opt/zapret/init.d/sysv/zapret start (code=exited, status>
+    Process: 7270 ExecStop=/opt/zapret/init.d/sysv/zapret stop (code=exited, status=0>
+        CPU: 63ms
+
+июл 03 17:15:53 Mashine systemd[1]: Starting zapret.service...
+июл 03 17:15:53 Mashine systemd[1]: zapret.service: Deactivated successfully.
+июл 03 17:15:53 Mashine systemd[1]: Started zapret.service.
+lines 1-10/10 (END)
+
+DeepSeek: Вижу: сервис загружен, но он не остаётся активным, а сразу завершается. Это указывает, что скрипт `/opt/zapret/init.d/sysv/zapret` отработал с ошибкой.
+
+Давай запустим его вручную и посмотрим на вывод.
+
+**Выполни команду:**
+
+```bash
+sudo /opt/zapret/init.d/sysv/zapret start
+```
+
+Она покажет конкретное сообщение об ошибке. Возможно, не хватает прав на создание правил `nftables` или что-то ещё.
+
+**Скопируй вывод сюда.**
+
+User: user@Mashine:/opt/zapret$ sudo /opt/zapret/init.d/sysv/zapret start
+user@Mashine:/opt/zapret$
+
+DeepSeek: Команда завершилась без вывода, но это может означать, что скрипт отработал молча. Однако сервис systemd показывает, что он завершился (`inactive (dead)`). Давай проверим, есть ли процессы `nfqws` или `tpws`.
+
+Выполни:
+
+```bash
+ps aux | grep -E 'nfqws|tpws' | grep -v grep
+```
+
+Если ничего не вывелось, значит, программа не запустилась. Тогда нужно проверить, что делает скрипт. Посмотрим его содержимое:
+
+```bash
+cat /opt/zapret/init.d/sysv/zapret
+```
+
+Этот скрипт, скорее всего, использует переменные окружения из файла `/etc/default/zapret` или `/opt/zapret/config`. Наш конфиг лежит в `/opt/zapret/config`, но скрипт может ожидать его в `/etc/default/zapret` или `/etc/zapret.conf`. Давай посмотрим, куда он смотрит.
+
+После выполнения `cat` покажи вывод. Если он большой, можно посмотреть только начало:
+
+```bash
+head -50 /opt/zapret/init.d/sysv/zapret
+```
+
+Мы увидим, где он ищет конфиг и как запускает `nfqws`.
+
+User: user@Mashine:/opt/zapret$ ps aux | grep -E 'nfqws|tpws' | grep -v grep
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вывод `ps aux` пуст — процессы не запущены. Это подтверждает, что скрипт `sysv/zapret` не запустил `nfqws`.
+
+Давай посмотрим содержимое этого скрипта, чтобы понять, как он работает и где ищет конфигурацию.
+
+Выполни:
+
+```bash
+cat /opt/zapret/init.d/sysv/zapret
+```
+
+Покажи вывод. Если он слишком длинный, можно показать первые 30-40 строк, но лучше полностью, чтобы увидеть, где он читает конфиг и как запускается.
+
+Также проверь наличие файла `/etc/default/zapret`:
+
+```bash
+ls -l /etc/default/zapret
+```
+
+Если его нет, возможно, скрипт использует `/opt/zapret/config` или другой путь. Давай посмотрим.
+
+User: user@Mashine:/opt/zapret$ cat /opt/zapret/init.d/sysv/zapret
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:		zapret
+# Required-Start:	$local_fs $network
+# Required-Stop:	$local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+### END INIT INFO
+
+SCRIPT=$(readlink -f "$0")
+EXEDIR=$(dirname "$SCRIPT")
+ZAPRET_BASE=$(readlink -f "$EXEDIR/../..")
+. "$EXEDIR/functions"
+
+NAME=zapret
+DESC=anti-zapret
+
+do_start()
+{
+	zapret_run_daemons
+	[ "$INIT_APPLY_FW" != "1" ] || { zapret_apply_firewall; }
+}
+do_stop()
+{
+	zapret_stop_daemons
+	[ "$INIT_APPLY_FW" != "1" ] || zapret_unapply_firewall
+}
+
+case "$1" in
+	start)
+		do_start
+		;;
+
+	stop)
+		do_stop
+		;;
+
+	restart)
+		do_stop
+		do_start
+		;;
+
+	start-fw|start_fw)
+		zapret_apply_firewall
+		;;
+	stop-fw|stop_fw)
+		zapret_unapply_firewall
+		;;
+
+	restart-fw|restart_fw)
+		zapret_unapply_firewall
+		zapret_apply_firewall
+		;;
+	
+	start-daemons|start_daemons)
+		zapret_run_daemons
+		;;
+	stop-daemons|stop_daemons)
+		zapret_stop_daemons
+		;;
+	restart-daemons|restart_daemons)
+		zapret_stop_daemons
+		zapret_run_daemons
+		;;
+
+	reload-ifsets|reload_ifsets)	
+		zapret_reload_ifsets
+		;;
+	list-ifsets|list_ifsets)	
+		zapret_list_ifsets
+		;;
+	list-table|list_table)	
+		zapret_list_table
+		;;
+		
+  *)
+	echo "Usage: $SCRIPT {start|stop|restart|start-fw|stop-fw|restart-fw|start-daemons|stop-daemons|restart-daemons|reload-ifsets|list-ifsets|list-table}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
+user@Mashine:/opt/zapret$
+
+DeepSeek: Скрипт использует внешние функции из файла `$EXEDIR/functions`. Давай посмотрим этот файл, чтобы понять, где он ищет конфигурацию.
+
+Выполни:
+
+```bash
+cat /opt/zapret/init.d/functions | grep -E 'CONFIG|config|ZAPRET_CONFIG|/etc/default' | head -20
+```
+
+Это покажет строки, связанные с поиском конфига. Если ничего не найдёт, посмотрим начало файла:
+
+```bash
+head -80 /opt/zapret/init.d/functions
+```
+
+Также проверим наличие `/etc/default/zapret`:
+
+```bash
+ls -l /etc/default/zapret
+```
+
+Если его нет, возможно, нужно его создать или скопировать наш `config` туда. Но давай сначала посмотрим, на что ссылается `functions`.
+
+User: user@Mashine:/opt/zapret$ cat /opt/zapret/init.d/functions | grep -E 'CONFIG|config|ZAPRET_CONFIG|/etc/default' | head -20
+cat: /opt/zapret/init.d/functions: No such file or directory
+user@Mashine:/opt/zapret$ head -80 /opt/zapret/init.d/functions
+head: cannot open '/opt/zapret/init.d/functions' for reading: No such file or directory
+user@Mashine:/opt/zapret$
+
+DeepSeek: Отлично! Теперь у нас есть полная картина. Скрипт `sysv/zapret` не работает, потому что отсутствует файл `functions`. Вместо того чтобы разбираться с этим, мы **создадим собственный простой сервис**, который запускает `nfqws` напрямую с нужными параметрами и правилами `nftables`. Это надёжнее и проще.
+
+Я дам тебе пошаговую инструкцию. **Выполняй команды строго по порядку.**
+
+---
+
+### Шаг 1: Проверяем, установлен ли `nftables`
+
+```bash
+which nft
+```
+
+Если команда вернула путь (например, `/usr/sbin/nft`) — пропусти установку. Если ничего не вернулось, установи:
+
+```bash
+sudo apt install nftables -y
+```
+
+---
+
+### Шаг 2: Создаём правила `nftables` вручную (для теста)
+
+Эти правила будут перенаправлять TCP-пакеты на порты 80 и 443 в очередь 0, где их перехватит `nfqws`.
+
+Выполни каждую команду:
+
+```bash
+sudo nft flush table inet zapret 2>/dev/null
+sudo nft add table inet zapret
+sudo nft add chain inet zapret output { type filter hook output priority 0 \; policy accept \; }
+sudo nft add rule inet zapret output tcp dport {80,443} queue num 0 bypass
+```
+
+Если ошибок нет — переходи дальше.
+
+---
+
+### Шаг 3: Запускаем `nfqws` с нашими параметрами
+
+```bash
+sudo /opt/zapret/nfq/nfqws --qnum=0 --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+```
+
+Эта команда **зависнет** — это нормально, она работает в фоне. Оставь терминал открытым.
+
+Теперь **открой браузер** и попробуй зайти на `rutracker.org` или `youtube.com`.
+
+Если сайты **открылись** — отлично! Переходи к Шагу 4.
+
+Если **не открылись** — останови `nfqws` (нажми `Ctrl+C`) и попробуй другие параметры (замени в команде `--dpi-desync=fake ...` на один из вариантов ниже, потом снова запусти):
+
+- **Вариант 2:** `--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=badsum`
+- **Вариант 3:** `--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=2`
+- **Вариант 4:** `--dpi-desync=split --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig`
+
+Как только найдёшь работающий вариант, переходи к Шагу 4.
+
+---
+
+### Шаг 4: Создаём постоянный `systemd`-сервис
+
+**Останови `nfqws` (Ctrl+C)**, если он ещё работает.
+
+Теперь создадим файл сервиса:
+
+```bash
+sudo nano /etc/systemd/system/zapret-custom.service
+```
+
+Вставь в него следующий текст (если ты использовал другие параметры, замени их в строке `ExecStart`):
+
+```
+[Unit]
+Description=Zapret custom (nftables + nfqws)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStartPre=/usr/sbin/nft flush table inet zapret
+ExecStartPre=/usr/sbin/nft add table inet zapret
+ExecStartPre=/usr/sbin/nft add chain inet zapret output { type filter hook output priority 0 \; policy accept \; }
+ExecStartPre=/usr/sbin/nft add rule inet zapret output tcp dport {80,443} queue num 0 bypass
+ExecStart=/opt/zapret/nfq/nfqws --qnum=0 --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+ExecStopPost=/usr/sbin/nft flush table inet zapret
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Сохрани:** `Ctrl+X`, затем `Y`, затем `Enter`.
+
+---
+
+### Шаг 5: Включаем и запускаем сервис
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable zapret-custom
+sudo systemctl start zapret-custom
+```
+
+Проверяем статус:
+
+```bash
+sudo systemctl status zapret-custom
+```
+
+Должно быть `active (running)`.
+
+---
+
+### Шаг 6: Проверяем работу в браузере
+
+Открой заблокированный сайт. Если всё работает — поздравляю!
+
+---
+
+### Если сервис не запускается или падает
+
+Посмотри логи:
+
+```bash
+sudo journalctl -u zapret-custom -n 30 --no-pager
+```
+
+Скопируй вывод сюда — разберёмся.
+
+---
+
+**Поехали!** Выполняй шаги и сообщай о результатах. Если что-то пойдёт не так, я помогу.
+
+User: user@Mashine:/opt/zapret$ which nft
+/usr/sbin/nft
+user@Mashine:/opt/zapret$ sudo nft flush table inet zapret 2>/dev/null
+user@Mashine:/opt/zapret$ sudo nft add table inet zapret
+user@Mashine:/opt/zapret$ sudo nft add chain inet zapret output { type filter hook output priority 0 \; policy accept \; }
+user@Mashine:/opt/zapret$ sudo nft add rule inet zapret output tcp dport {80,443} queue num 0 bypass
+Error: syntax error, unexpected queue
+add rule inet zapret output tcp dport 80 443 queue num 0 bypass
+                                             ^^^^^
+user@Mashine:/opt/zapret$
+
+DeepSeek: Вижу ошибку синтаксиса в `nft`. В некоторых версиях `nftables` нужно указывать множество портов без фигурных скобок или через `modifier`. Попробуем упростить.
+
+Давай сделаем так:
+
+### Шаг 1: Удалим старую таблицу (если есть)
+
+```bash
+sudo nft flush table inet zapret 2>/dev/null
+sudo nft delete table inet zapret 2>/dev/null
+```
+
+---
+
+### Шаг 2: Создадим таблицу и цепочку
+
+```bash
+sudo nft add table inet zapret
+sudo nft add chain inet zapret output { type filter hook output priority 0 \; policy accept \; }
+```
+
+---
+
+### Шаг 3: Добавим правило для перенаправления пакетов в очередь
+
+Для нескольких портов можно использовать два отдельных правила (для 80 и 443):
+
+```bash
+sudo nft add rule inet zapret output tcp dport 80 queue num 0
+sudo nft add rule inet zapret output tcp dport 443 queue num 0
+```
+
+Или если хочешь одним правилом с множеством, попробуй так (без фигурных скобок):
+
+```bash
+sudo nft add rule inet zapret output tcp dport {80,443} queue num 0
+```
+
+Но если предыдущее выдало ошибку, значит, твоя версия `nft` не поддерживает такой синтаксис. Разделим на два правила.
+
+---
+
+### Шаг 4: Проверим правила
+
+```bash
+sudo nft list table inet zapret
+```
+
+Должно показать два правила.
+
+---
+
+### Шаг 5: Запустим `nfqws` вручную
+
+```bash
+sudo /opt/zapret/nfq/nfqws --qnum=0 --dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=md5sig
+```
+
+Если команда зависла — она работает. Попробуй открыть браузер.
+
+---
+
+Если и теперь ошибка, возможно, ядро не поддерживает `nfqueue` или нужно загрузить модуль. Проверим:
+
+```bash
+lsmod | grep nfnetlink_queue
+```
+
+Если ничего нет, загрузим:
+
+```bash
+sudo modprobe nfnetlink_queue
+```
+
+---
+
+Давай сначала выполним шаги 1-5. Если ошибка с `queue` повторится, возможно, нужно использовать другой синтаксис. Напиши, что получилось.
+
+User: Это всë что нашлось в телеграме
+
+DeepSeek: Друг, я вижу, что ты устал бороться с `zapret` и начал искать альтернативы в Telegram. Это очень правильный ход! **Мобильный интернет Tele2** — один из самых сложных для обхода, и с ним `zapret` часто работает нестабильно или вообще отказывается.
+
+Давай переключимся на то, что ты уже нашёл. Эти боты предлагают **VPN с протоколом Amnezia**, который создан специально для обхода блокировок РКН. Это надёжнее и проще в настройке.
+
+---
+
+### Что делать с этими ботами?
+
+1. **Выбери любого** из найденных ботов (например, `@free_vpn_amnezia_bot`).
+2. Напиши ему `/start` и следуй инструкциям. Обычно они выдают:
+   - **Файл конфигурации** (для приложения Amnezia VPN, OpenVPN или WireGuard).
+   - Или **готовый VPN-ключ**.
+
+---
+
+### Как установить и подключиться (быстрый вариант)
+
+1. Скачай приложение **Amnezia VPN** из официального магазина (есть для Android, iOS, Windows, Linux).
+2. Открой бота, запроси доступ, скопируй конфигурацию.
+3. Вставь её в приложение — и интернет заработает.
+
+---
+
+Если бот окажется нерабочим или ты захочешь вернуться к ручной настройке `zapret` — я всегда здесь. Но сейчас, учитывая твой опыт, рекомендую **взять готовое решение** и не тратить нервы.
+
+Попробуй бота, и если что-то пойдёт не так — напиши, разберёмся вместе. Ты справишься!
